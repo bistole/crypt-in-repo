@@ -1,0 +1,34 @@
+{
+  "name": "crypt-in-repo",
+  "version": "0.2.0-alpha",
+  "description": "crypt secret files in repo before commit to github",
+  "main": "src/index.js",
+  "bin": {
+    "crypt-in-repo": "./bin/crypt-in-repo.js"
+  },
+  "scripts": {
+    "lint": "eslint src/**/*.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bistole/crypt-in-repo.git"
+  },
+  "keywords": [
+    "crypt"
+  ],
+  "author": "Shizheng Ding <shizheng.ding@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/bistole/crypt-in-repo/issues"
+  },
+  "homepage": "https://github.com/bistole/crypt-in-repo#readme",
+  "dependencies": {
+    "aes256": "^1.1.0",
+    "js-base64": "^3.6.0",
+    "yargs": "^16.2.0"
+  },
+  "devDependencies": {
+    "eslint": "^7.21.0"
+  }
+}
