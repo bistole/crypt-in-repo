@@ -1,10 +1,10 @@
 {
   "name": "crypt-in-repo",
-  "version": "0.2.0-alpha",
+  "version": "1.0.0",
   "description": "crypt secret files in repo before commit to github",
   "main": "src/index.js",
   "bin": {
-    "crypt-in-repo": "./bin/crypt-in-repo.js"
+    "crypt-in-repo": "bin/crypt-in-repo.js"
   },
   "scripts": {
     "lint": "eslint src/**/*.js",
