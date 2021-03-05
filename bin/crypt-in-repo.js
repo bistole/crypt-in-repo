@@ -4,10 +4,15 @@ const main = require("../src/main");
 
 try {
     parseParams.readCommandline(process.argv, (command, configs) => {
-        if (command === "encode") {
+        switch (command) {
+        case "encrypt":
             main.encrypt(configs);
-        } else {
+            break;
+        case "decrypt":
             main.decrypt(configs);
+            break;
+        default:
+            throw new Error(`Unknown command: ${command}`);
         }
     });
 } catch (e) {

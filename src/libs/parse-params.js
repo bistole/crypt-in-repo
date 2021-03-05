@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const yargs = require("yargs");
 
+const PACKGE_JSON_FILE = "package.json";
 const DEFAULT_CONFIG_FILENAME = "crypt-in-repo.json";
 
 const ENV_CONFIG = "CIR_CONFIG";
@@ -9,6 +10,12 @@ const ENV_PASSPHRASE = "CIR_PASS";
 const ENV_FILES = "CIR_FILES";
 const ENV_EXTENSION = "CIR_EXT";
 const ENV_SIZELIMIT = "CIR_SIZELIMIT";
+
+class FailedToLocateProjectHome extends Error {
+    constructor() {
+        super("Are you run this script in nodejs project? can not find package.json file.");
+    }
+}
 
 class MissingPropertyError extends Error {
     constructor(propName, configFilename) {
@@ -66,15 +73,30 @@ const configCliEnvMapping = {
         "def": 1048576
     },
     [configProps.PROP_BASEDIR]: {
-        "cli": "."
+        "type": "string",
     }
 };
 
-const getDefaultConfigFile = () => {
-    var appDir = path.dirname(require.main.filename);
-    var configFile = path.join(appDir, DEFAULT_CONFIG_FILENAME);
-    return configFile;
-};
+function getProjectHome() {
+    let fullpath = process.env.PWD;
+    if (fullpath.endsWith(path.sep)) {
+        fullpath = fullpath.slice(0, -1);
+    }
+
+    let seg = fullpath.split(path.sep);
+    while (seg.length > 0) {
+        let v = path.sep + path.join(...seg, PACKGE_JSON_FILE);
+        if (fs.existsSync(v)) {
+            return path.sep + path.join(...seg);
+        }
+        seg = seg.splice(0, -1);
+    }
+    throw new FailedToLocateProjectHome();
+}
+
+function getConfigFilename(baseDir) {
+    return path.sep + path.join(baseDir, DEFAULT_CONFIG_FILENAME);
+}
 
 function convertEnvVarToConfigs(env, priorityConfigs) {
     // console.log(env)
@@ -85,7 +107,7 @@ function convertEnvVarToConfigs(env, priorityConfigs) {
             return;
         }
         const envKey = configCliEnvMapping[configKey].env;
-        if (env[envKey] !== undefined && env[envKey] !== null) {
+        if (envKey && env[envKey] !== undefined && env[envKey] !== null) {
             const type = configCliEnvMapping[configKey].type;
             if (type == "string") {
                 configs[configKey] = env[envKey];
@@ -96,18 +118,24 @@ function convertEnvVarToConfigs(env, priorityConfigs) {
             }
         }
     });
+
     if (typeof env[ENV_CONFIG] === "string") {
         configs = readConfigs(env[ENV_CONFIG], configs);
     }
     return configs;
 }
 
-function convertCliOptToConfigs(args) {
+function convertCliOptToConfigs(args, priorityConfigs) {
     // console.log(args)
     let configs = {};
     Object.keys(configCliEnvMapping).forEach(configKey => {
+        if (priorityConfigs[configKey] !== undefined && priorityConfigs[configKey] !== null) {
+            configs[configKey] = priorityConfigs[configKey];
+            return;
+        }
+
         const cliKey = configCliEnvMapping[configKey].cli;
-        if (args[cliKey] !== undefined && args[cliKey] !== null) {
+        if (cliKey && args[cliKey] !== undefined && args[cliKey] !== null) {
             configs[configKey] = args[cliKey];
         }
     });
@@ -120,10 +148,16 @@ function convertCliOptToConfigs(args) {
 
 function combineConfigs(cliArgv) {
     let configs = {};
-    configs = convertCliOptToConfigs(cliArgv);
+    if (!configs[configProps.PROP_BASEDIR]) {
+        configs[configProps.PROP_BASEDIR] = getProjectHome();
+        console.log("base dir = " + configs[configProps.PROP_BASEDIR]);
+    }
+    configs = convertCliOptToConfigs(cliArgv, configs);
     configs = convertEnvVarToConfigs(process.env, configs);
     try {
-        configs = readConfigs(getDefaultConfigFile(), configs);
+        var configFile = getConfigFilename(configs[configProps.PROP_BASEDIR]);
+        configs = readConfigs(configFile, configs);
+        console.log(configs);
     } catch (e) {
         // suppress only when config is set by env or cli
         if (!(e instanceof MissingConfigFileError) || Object.keys(configs).length === 0) {
@@ -195,6 +229,7 @@ const readConfigs = (configFile, priorityConfigs) => {
         throw new MissingConfigFileError(configFile);
     }
 
+    // read config file
     var buffer = fs.readFileSync(configFile);
     var configs = {};
     try {
@@ -202,29 +237,32 @@ const readConfigs = (configFile, priorityConfigs) => {
     } catch (e) {
         throw new Error(`Catch error when parse config file: ${configFile}: ${e}`);
     }
+    
+    // set property if not set
+    Object.keys(configCliEnvMapping).forEach(configKey => {
+        if (priorityConfigs[configKey] !== undefined && priorityConfigs[configKey] !== null) {
+            return;
+        }
+        if (configs[configKey] !== undefined && configs[configKey] !== null) {
+            if (configCliEnvMapping[configKey].type === "string" && typeof configs[configKey] !== "string") {
+                throw new MalformatPropertyError(configKey, "should be a string");
+            } else if (configCliEnvMapping[configKey].type === "number" && typeof configs[configKey] !== "number") {
+                throw new MalformatPropertyError(configKey, "should be a number");
+            } else if (configCliEnvMapping[configKey].type === "array" && !Array.isArray(configs[configKey])) {
+                throw new MalformatPropertyError(configKey, "should be a array of filenames");
+            }
+            priorityConfigs[configKey] = configs[configKey];
+        }
+    });
 
-    // base dir
-    if (!priorityConfigs[configProps.PROP_BASEDIR]) {
-        var baseDir = path.dirname(require.main.filename);
-        configs[configProps.PROP_BASEDIR] = baseDir;    
-    }
-
-    // file extension
-    configs[configProps.PROP_EXTENSION] = configs[configProps.PROP_EXTENSION] || ".aes256";
-    if (!configs[configProps.PROP_EXTENSION].startsWith(".")) {
-        configs[configProps.PROP_EXTENSION] = "." + configs[configProps.PROP_EXTENSION];
-    }
-
-    return configs;
+    return priorityConfigs;
 };
 
 const validateConfigs = (configs, configFilename) => {
     // base dir
     const baseDir = configs[configProps.PROP_BASEDIR];
-    if (baseDir === undefined || baseDir === null) {
-        configs[configProps.PROP_BASEDIR] = path.dirname(require.main.filename);
-    } else if (typeof baseDir !== "string" || !fs.existsSync(baseDir)) {
-        throw new Error(`project home is not set properly or not existed: ${baseDir}`);
+    if (typeof baseDir !== "string" || !fs.existsSync(baseDir)) {
+        configs[configProps.PROP_BASEDIR] = getProjectHome();
     }
 
     // passphrase
@@ -242,8 +280,7 @@ const validateConfigs = (configs, configFilename) => {
     const ext = configs[configProps.PROP_EXTENSION];
     if (ext === undefined || ext === null) {
         configs[configProps.PROP_EXTENSION] = configCliEnvMapping[configProps.PROP_EXTENSION].def;
-    }
-    if (typeof ext !== "string" || ext.length === 0 || !ext.startsWith(".")) {
+    } else if (typeof ext !== "string" || ext.length === 0 || !ext.startsWith(".")) {
         throw new MalformatPropertyError(configProps.PROP_EXTENSION, "should be a string and start with .(dot)");
     }
 
@@ -252,6 +289,7 @@ const validateConfigs = (configs, configFilename) => {
     if (limit == undefined || limit === null) {
         configs[configProps.PROP_SIZELIMIT] = configCliEnvMapping[configProps.PROP_SIZELIMIT].def;
     }
+    return configs;
 };
 
 exports.readCommandline = readCommandline;
