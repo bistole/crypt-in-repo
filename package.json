@@ -9,8 +9,7 @@
   "scripts": {
     "lint": "eslint src/**/*.js test/**/*.js",
     "test": "mocha test/*.js test/**/*.js",
-    "coverage": "nyc --reporter=html npm test",
-    "coveralls": "nyc npm test && nyc report --reporter=text-lcov | coveralls"
+    "coverage": "nyc --reporter=html --reporter=text-lcov npm test"
   },
   "repository": {
     "type": "git",
