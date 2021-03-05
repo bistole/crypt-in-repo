@@ -41,10 +41,10 @@ Add script in package.json
 Run the script:
 ```shell
 # encrypt
-CIR_PASS=<passphrase> npm run encrypt
+CIR_PASS=mypassword npm run encrypt
 
 # decrypt
-CIR_PASS=<passphrase> npm run decrypt
+CIR_PASS=mypassword npm run decrypt
 ```
 
 ### Example using command line
@@ -52,18 +52,17 @@ CIR_PASS=<passphrase> npm run decrypt
 Encrypt files:
 
 ```shell
-crypt-in-repo encrypt --pass password --file secret.cert ios.p12
+npm run encrypt -- --pass mypassword --file secret.cert ios.p12
 
-crypt-in-repo encrypt --config crypt.json
-
+npm run encrypt -- --config ./crypt-in-repo.json
 ```
 
 Decrypt files:
 
 ```shell
-crypt-in-repo decrypt --pass=password --file secret.cert ios.p12
+npm run decrypt -- --pass mypassword --file secret.cert ios.p12
 
-crypt-in-repo decrypt --config=./crypt.json
+npm run decrypt -- --config ./crypt-in-repo.json
 ```
 
 ### Example using environment variables
@@ -71,17 +70,16 @@ crypt-in-repo decrypt --config=./crypt.json
 Encrypt files:
 
 ```shell
-CIR_CONFIG=/path/to/crypt.json crypt-in-repo encrypt
+CIR_CONFIG=./crypt-in-repo.json npm run encrypt
 
-CIR_PASS=password crypt-in-repo encrypt --file secret.cert ios.p12
+CIR_PASS=mypassword npm run encrypt -- --file secret.cert ios.p12
 ```
 
 Decrypt files:
-
 ```shell
-CIR_CONFIG=/path/to/crypt.json crypt-in-repo decrypt
+CIR_CONFIG=./crypt-in-repo.json npm run decrypt
 
-CIR_PASS=password crypt-in-repo decrypt --file secret.cert ios.p12
+CIR_PASS=mypassword npm run decrypt -- --file secret.cert ios.p12
 ```
 
 ## Documents
@@ -107,12 +105,9 @@ Notes:
 
 `crypt-in-repo`  `--config config_file` to get config file. System environment variable `CIR_CONFIG` has the same functionality.
 
-
-
 ## TODO
 
 Work with pre-commit, so the encrypted file will replace the origin files in commit.
-
 
 ## License
 

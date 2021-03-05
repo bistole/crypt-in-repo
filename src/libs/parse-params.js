@@ -19,7 +19,8 @@ class FailedToLocateProjectHome extends Error {
 
 class MissingPropertyError extends Error {
     constructor(propName, configFilename) {
-        super(`Property '${propName}' is not defined in ${configFilename}, \n`
+        super(`Property '${propName}' is not defined in config file '${configFilename}'. \n`
+            + ` add property '${propName}' in it, \n`
             + ` or add option --'${configCliEnvMapping[propName].cli}' when using command line, \n`
             + ` or set environment variable: ${configCliEnvMapping[propName].env}\n`);
     }
@@ -29,8 +30,8 @@ class MissingConfigFileError extends Error {
     constructor(configFilename) {
         super(`Can't find ${configFilename},\n`
             + `you can add ${DEFAULT_CONFIG_FILENAME} in project home folder,\n`
-            + " or add option '--config' when using command line,\n"
-            + " or set environment variable: 'CIR_CONFIG'\n");
+            + " or add option '--config' to assign a config file in command line,\n"
+            + " or set environment variable: 'CIR_CONFIG'.\n");
     }
 }
 
@@ -74,7 +75,10 @@ const configCliEnvMapping = {
     },
     [configProps.PROP_BASEDIR]: {
         "type": "string",
-    }
+    },
+    [configProps.PROP_CONFIG]: {
+        "type": "string",
+    },
 };
 
 function getProjectHome() {
@@ -84,7 +88,7 @@ function getProjectHome() {
     }
 
     let seg = fullpath.split(path.sep);
-    while (seg.length > 0) {
+    while (seg.length > 1) {
         let v = path.sep + path.join(...seg, PACKGE_JSON_FILE);
         if (fs.existsSync(v)) {
             return path.sep + path.join(...seg);
@@ -95,7 +99,7 @@ function getProjectHome() {
 }
 
 function getConfigFilename(baseDir) {
-    return path.sep + path.join(baseDir, DEFAULT_CONFIG_FILENAME);
+    return path.join(baseDir, DEFAULT_CONFIG_FILENAME);
 }
 
 function convertEnvVarToConfigs(env, priorityConfigs) {
@@ -120,6 +124,8 @@ function convertEnvVarToConfigs(env, priorityConfigs) {
     });
 
     if (typeof env[ENV_CONFIG] === "string") {
+        // console.log(`from env: ${env[ENV_CONFIG]}`)
+        configs[configProps.PROP_CONFIG] = env[ENV_CONFIG];
         configs = readConfigs(env[ENV_CONFIG], configs);
     }
     return configs;
@@ -141,6 +147,8 @@ function convertCliOptToConfigs(args, priorityConfigs) {
     });
     // read config file set in command line before parse environment
     if (typeof args.config === "string") {
+        // console.log(`from cli: ${args.config}`)
+        configs[configProps.PROP_CONFIG] = args.config;
         configs = readConfigs(args.config, configs);
     }
     return configs;
@@ -150,24 +158,26 @@ function combineConfigs(cliArgv) {
     let configs = {};
     if (!configs[configProps.PROP_BASEDIR]) {
         configs[configProps.PROP_BASEDIR] = getProjectHome();
-        console.log("base dir = " + configs[configProps.PROP_BASEDIR]);
     }
     configs = convertCliOptToConfigs(cliArgv, configs);
     configs = convertEnvVarToConfigs(process.env, configs);
-    try {
-        var configFile = getConfigFilename(configs[configProps.PROP_BASEDIR]);
-        configs = readConfigs(configFile, configs);
-        console.log(configs);
-    } catch (e) {
-        // suppress only when config is set by env or cli
-        if (!(e instanceof MissingConfigFileError) || Object.keys(configs).length === 0) {
-            throw e;
+    if (!configs[configProps.PROP_CONFIG]) {
+        try {
+            var configFile = getConfigFilename(configs[configProps.PROP_BASEDIR]);
+            // console.log(`from default: ${configFile}`)
+            configs[configProps.PROP_CONFIG] = configFile;
+            configs = readConfigs(configFile, configs);
+        } catch (e) {
+            // suppress only when config is set by env or cli
+            if (!(e instanceof MissingConfigFileError) || Object.keys(configs).length === 0) {
+                throw e;
+            }
         }
     }
     return configs;
 }
 
-const readCommandline = (argv, cb) => {
+function readCommandline(argv, cb) {
     yargs(process.argv.slice(2))
         .usage("Usage: $0 <command> [options]")
         .command("encrypt", "Encrypt files", (yargs) => {
@@ -222,9 +232,9 @@ const readCommandline = (argv, cb) => {
         .help("help")
         .wrap(null)
         .argv;
-};
+}
 
-const readConfigs = (configFile, priorityConfigs) => {
+function readConfigs(configFile, priorityConfigs) {
     if (!fs.existsSync(configFile)) {
         throw new MissingConfigFileError(configFile);
     }
@@ -256,9 +266,11 @@ const readConfigs = (configFile, priorityConfigs) => {
     });
 
     return priorityConfigs;
-};
+}
 
-const validateConfigs = (configs, configFilename) => {
+function validateConfigs(configs) {
+    // console.log(configs);
+
     // base dir
     const baseDir = configs[configProps.PROP_BASEDIR];
     if (typeof baseDir !== "string" || !fs.existsSync(baseDir)) {
@@ -268,12 +280,12 @@ const validateConfigs = (configs, configFilename) => {
     // passphrase
     const passphrase = configs[configProps.PROP_PASS];
     if (passphrase === undefined || passphrase === null) {
-        throw new MissingPropertyError(configProps.PROP_PASS, configFilename);
+        throw new MissingPropertyError(configProps.PROP_PASS, configs[configProps.PROP_CONFIG]);
     }
     
     // files
     if (!Array.isArray(configs[configProps.PROP_FILES]) || configs[configProps.PROP_FILES].length === 0) {
-        throw new MissingPropertyError(configProps.PROP_FILES, configFilename);
+        throw new MissingPropertyError(configProps.PROP_FILES, configs[configProps.PROP_CONFIG]);
     }
 
     // extension
@@ -290,7 +302,7 @@ const validateConfigs = (configs, configFilename) => {
         configs[configProps.PROP_SIZELIMIT] = configCliEnvMapping[configProps.PROP_SIZELIMIT].def;
     }
     return configs;
-};
+}
 
 exports.readCommandline = readCommandline;
 exports.validateConfigs = validateConfigs;
