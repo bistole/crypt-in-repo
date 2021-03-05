@@ -91,7 +91,7 @@ Options can set in config file, command line or environment variables:
 | pass  | --pass, -p              | CIR_PASS=passphase         | Passphrase for enrypt/decrypt file. |
 | files | --file file1 [file2...]<sup>1</sup> | CIR_FILES=file1[;file2...]<sup>2</sup> | Array of origin files. |
 | ext   | --ext                   | CIR_EXT=.crypt             | Extension of encrypted files. <br/>Default value: .aes256 |
-| limit | --limit                 | CIR_LIMIT=1048576          | Limit size of origin file. <br/> Default value: 1048576 (1MB) |
+| limit | --limit                 | CIR_SIZELIMIT=1048576          | Limit size of origin file. <br/> Default value: 1048576 (1MB) |
 
 Notes:
 1. Assign file list in command line follow the [yargs array(key)](https://yargs.js.org/docs/#api-reference-arraykey) standards:

@@ -178,7 +178,7 @@ function combineConfigs(cliArgv) {
 }
 
 function readCommandline(argv, cb) {
-    yargs(process.argv.slice(2))
+    yargs(argv.slice(2))
         .usage("Usage: $0 <command> [options]")
         .command("encrypt", "Encrypt files", (yargs) => {
             return yargs

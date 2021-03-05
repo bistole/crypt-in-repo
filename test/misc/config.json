@@ -1,0 +1,6 @@
+{
+    "passphrase": "from_config",
+    "files": [ "source_by_config.cert" ],
+    "ext": ".crypt_by_config",
+    "limit": 999
+}
