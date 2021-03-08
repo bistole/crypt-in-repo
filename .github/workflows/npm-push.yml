@@ -1,11 +1,11 @@
 on: ["push"]
 
-name: Test Coveralls
+name: coveralls
 
 jobs:
 
   build:
-    name: Build
+    name: build
     runs-on: ubuntu-latest
     steps:
 
@@ -16,12 +16,12 @@ jobs:
       with:
         node-version: 12
 
-    - name: npm install, make test-coverage
+    - name: npm install, make test
       run: |
         npm install
         npm run coverage
 
-    - name: Coveralls
+    - name: coveralls
       uses: coverallsapp/github-action@master
       with:
         github-token: ${{ secrets.github_token }}
