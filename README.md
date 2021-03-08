@@ -1,5 +1,8 @@
 # crypt-in-repo
 
+[![Coverage Status](https://coveralls.io/repos/github/bistole/crypt-in-repo/badge.svg)](https://coveralls.io/github/bistole/crypt-in-repo)
+
+
 ## 🛑 This npm is still in alpha stage.
 
 Keep secret files in github repository could be safe as long as it is encrypted. `crypt-in-repo` is a helper for developer who need to save secret files with their code in a safe way.
