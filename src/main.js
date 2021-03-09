@@ -5,7 +5,8 @@ exports.encrypt = function( configs ) {
     configs = parseParams.validateConfigs(configs);
     configs.files.forEach(file => {
         try {
-            crypt.encryptFile(file, configs);
+            var log = crypt.encryptFile(file, configs);
+            console.log(log);
         } catch (e) {
             console.error(e);
         }
