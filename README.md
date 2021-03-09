@@ -106,9 +106,13 @@ Notes:
 
 `crypt-in-repo`  `--config config_file` to get config file. System environment variable `CIR_CONFIG` has the same functionality.
 
-## TODO
+## Change Logs
 
-Work with pre-commit, so the encrypted file will replace the origin files in commit.
+0.3.0 - 
+
+- More Test Coverage.
+- Skip encrypting when nothing changes on original file.
+
 
 ## License
 

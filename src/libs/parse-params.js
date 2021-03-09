@@ -17,12 +17,18 @@ class FailedToLocateProjectHome extends Error {
     }
 }
 
+class MalformatConfigFileError extends Error {
+    constructor(configFilename) {
+        super(`Config file '${configFilename}' is not a json formatted file`);
+    }
+}
+
 class MissingPropertyError extends Error {
     constructor(propName, configFilename) {
-        super(`Property '${propName}' is not defined in config file '${configFilename}'. \n`
-            + ` add property '${propName}' in it, \n`
-            + ` or add option --'${configCliEnvMapping[propName].cli}' when using command line, \n`
-            + ` or set environment variable: ${configCliEnvMapping[propName].env}\n`);
+        super(`Property '${propName}' is not defined. \n`
+            + ` add property '${propName}' in config file ${configFilename ? "'"+configFilename+"'" : ""}, \n`
+            + ` or add option --${configCliEnvMapping[propName].cli}\n`
+            + ` or set environment variable: ${configCliEnvMapping[propName].env} when using command line.\n`);
     }
 }
 
@@ -40,6 +46,12 @@ class MalformatPropertyError extends Error {
         super(`${propName}: ${message}`);
     }
 }
+
+exports.FailedToLocateProjectHome = FailedToLocateProjectHome;
+exports.MissingConfigFileError = MissingConfigFileError;
+exports.MalformatConfigFileError = MalformatConfigFileError;
+exports.MissingPropertyError = MissingPropertyError;
+exports.MalformatPropertyError = MalformatPropertyError;
 
 const configProps = {
     PROP_CONFIG: "config",
@@ -154,27 +166,28 @@ function convertCliOptToConfigs(args, priorityConfigs) {
     return configs;
 }
 
-function combineConfigs(cliArgv) {
+function combineConfigs(command, cliArgv, cb) {
+    let isDefConfig = false;
     let configs = {};
-    if (!configs[configProps.PROP_BASEDIR]) {
+    try {
         configs[configProps.PROP_BASEDIR] = getProjectHome();
-    }
-    configs = convertCliOptToConfigs(cliArgv, configs);
-    configs = convertEnvVarToConfigs(process.env, configs);
-    if (!configs[configProps.PROP_CONFIG]) {
-        try {
+        configs = convertCliOptToConfigs(cliArgv, configs);
+        configs = convertEnvVarToConfigs(process.env, configs);
+        if (!configs[configProps.PROP_CONFIG]) {
+            // default config can be missing if properties is loaded
             var configFile = getConfigFilename(configs[configProps.PROP_BASEDIR]);
             // console.log(`from default: ${configFile}`)
             configs[configProps.PROP_CONFIG] = configFile;
+            isDefConfig = true;
             configs = readConfigs(configFile, configs);
-        } catch (e) {
-            // suppress only when config is set by env or cli
-            if (!(e instanceof MissingConfigFileError) || Object.keys(configs).length === 0) {
-                throw e;
-            }
+        }
+    } catch (e) {
+        // suppress only when config is set by env or cli
+        if (!(e instanceof MissingConfigFileError && isDefConfig) || Object.keys(configs).length === 0) {
+            return cb(e);
         }
     }
-    return configs;
+    return cb(null, command, configs);
 }
 
 function readCommandline(argv, cb) {
@@ -186,8 +199,7 @@ function readCommandline(argv, cb) {
                 .help("help")
                 .argv;
         }, (newArgv) => {
-            newArgv.base = "./";
-            cb("encrypt", combineConfigs(newArgv));
+            combineConfigs("encrypt", newArgv, cb);
         })
         .command("decrypt", "Decrypt files", (yargs) => {
             return yargs
@@ -195,8 +207,7 @@ function readCommandline(argv, cb) {
                 .help("help")
                 .argv;
         }, (newArgv) => {
-            newArgv.base = "./";
-            cb("decrypt", combineConfigs(newArgv));
+            combineConfigs("decrypt", newArgv, cb);
         })
         .option("config", {
             describe: "config file",
@@ -245,7 +256,7 @@ function readConfigs(configFile, priorityConfigs) {
     try {
         configs = JSON.parse(buffer);
     } catch (e) {
-        throw new Error(`Catch error when parse config file: ${configFile}: ${e}`);
+        throw new MalformatConfigFileError(configFile);
     }
     
     // set property if not set
@@ -254,13 +265,6 @@ function readConfigs(configFile, priorityConfigs) {
             return;
         }
         if (configs[configKey] !== undefined && configs[configKey] !== null) {
-            if (configCliEnvMapping[configKey].type === "string" && typeof configs[configKey] !== "string") {
-                throw new MalformatPropertyError(configKey, "should be a string");
-            } else if (configCliEnvMapping[configKey].type === "number" && typeof configs[configKey] !== "number") {
-                throw new MalformatPropertyError(configKey, "should be a number");
-            } else if (configCliEnvMapping[configKey].type === "array" && !Array.isArray(configs[configKey])) {
-                throw new MalformatPropertyError(configKey, "should be a array of filenames");
-            }
             priorityConfigs[configKey] = configs[configKey];
         }
     });
@@ -281,6 +285,8 @@ function validateConfigs(configs) {
     const passphrase = configs[configProps.PROP_PASS];
     if (passphrase === undefined || passphrase === null) {
         throw new MissingPropertyError(configProps.PROP_PASS, configs[configProps.PROP_CONFIG]);
+    } else if (typeof passphrase !== "string") {
+        throw new MalformatPropertyError(configProps.PROP_PASS, "should be a string");
     }
     
     // files
@@ -300,6 +306,8 @@ function validateConfigs(configs) {
     const limit = configs[configProps.PROP_SIZELIMIT];
     if (limit == undefined || limit === null) {
         configs[configProps.PROP_SIZELIMIT] = configCliEnvMapping[configProps.PROP_SIZELIMIT].def;
+    } else if (typeof limit !== "number") {
+        throw new MalformatPropertyError(configProps.PROP_SIZELIMIT, "should be a number");
     }
     return configs;
 }
