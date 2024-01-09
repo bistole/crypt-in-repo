@@ -1,6 +1,6 @@
 {
   "name": "crypt-in-repo",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "crypt secret files in repo before commit to github",
   "main": "src/index.js",
   "bin": {
