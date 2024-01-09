@@ -1,7 +1,6 @@
 const fs = require("fs");
 const path = require("path");
 const aes256 = require("aes256");
-const base64 = require("js-base64");
 const sha256 = require("js-sha256");
 
 const HEADER = "CIR_";
@@ -42,7 +41,7 @@ function readEncrypedFile(fullpath, passphrase) {
     var ciper = aes256.createCipher(passphrase);
 
     var encoded = fs.readFileSync(fullpath).toString();
-    var encrypted = Buffer.from(base64.atob(encoded), "binary");    
+    var encrypted = Buffer.from(encoded, "base64");
 
     try {
         var origin = ciper.decrypt(encrypted);
@@ -107,7 +106,7 @@ exports.encryptFile = (filename, conf) => {
     var ciper = aes256.createCipher(conf.passphrase);
     var origin = Buffer.concat([Buffer.from(HEADER), Buffer.from(checksum, "ascii"), body]);
     var encrypted = ciper.encrypt(origin);
-    var encoded = base64.btoa(encrypted);
+    var encoded = Buffer.from(encrypted, "binary").toString("base64");
     fs.writeFileSync(cryptfullpath, encoded);
     return `${filename} is encrypted` + (even ? ` even got '${even}'.` : ".") ;
 };

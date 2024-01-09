@@ -2,7 +2,6 @@ const assert = require("assert");
 const path = require("path");
 const fs = require("fs");
 const aes256 = require("aes256");
-const base64 = require("js-base64");
 const crypt = require("../../src/libs/crypt");
 const { sha256 } = require("js-sha256");
 
@@ -111,7 +110,7 @@ describe("crypt", () => {
                 const buf = Buffer.from("CIR_" + "WHATEVER");
                 var ciper = aes256.createCipher(config.passphrase);
                 var encrypted = ciper.encrypt(buf);
-                var encoded = base64.btoa(encrypted);
+                var encoded = Buffer.from(encrypted);
                 fs.writeFileSync(sourceFile + "._crypt", encoded);
 
                 const log = crypt.encryptFile("source.txt", config);
@@ -132,7 +131,7 @@ describe("crypt", () => {
                 const buf = Buffer.from("CIR_" + checksum + raw + "ONE_MORE");
                 var ciper = aes256.createCipher(config.passphrase);
                 var encrypted = ciper.encrypt(buf);
-                var encoded = base64.btoa(encrypted);
+                var encoded = Buffer.from(encrypted);
                 fs.writeFileSync(sourceFile + "._crypt", encoded);
 
                 const log = crypt.encryptFile("source.txt", config);
